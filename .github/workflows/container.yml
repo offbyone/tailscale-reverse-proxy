@@ -19,7 +19,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: Build ${{ env.IMAGE_NAME }} for ${{ matrix.arch }}
+    name: Build ghcr.io/${{ github.repository }} for ${{ matrix.arch }}
     strategy:
       matrix:
         arch: ["aarch64", "amd64", "armhf", "arm/v7"]
@@ -38,7 +38,7 @@ jobs:
       - uses: docker/metadata-action@v4
         id: meta
         with:
-          images: ${{ env.IMAGE_NAME }}
+          images: ghcr.io/${{ github.repository }}
           flavor: |
             latest=auto
           tags: |
@@ -54,7 +54,7 @@ jobs:
           context: .
           platforms: linux/${{ matrix.arch }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
         run: |
@@ -88,7 +88,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.IMAGE_NAME }}
+          images: ghcr.io/${{ github.repository }}
       - name: Log in to the Github Container registry
         uses: docker/login-action@v2
         with:
@@ -99,7 +99,7 @@ jobs:
         working-directory: /tmp/digests-${{ github.event.repository.name }}
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf '${{ env.IMAGE_NAME }}@sha256:%s ' *)
+            $(printf 'ghcr.io/${{ github.repository }}@sha256:%s ' *)
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+          docker buildx imagetools inspect ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.version }}

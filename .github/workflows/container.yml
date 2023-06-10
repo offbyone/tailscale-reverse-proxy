@@ -25,10 +25,6 @@ jobs:
 
     strategy:
       matrix:
-        goos: []
-        goarch: []
-        arm_version: []
-        docker: []
         include:
           - goos: linux
             goarch: arm

@@ -10,6 +10,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
 
 COPY ${EXECUTABLE} /usr/local/bin/tailscale-reverse-proxy
 
+RUN chmod +x /usr/local/bin/tailscale-reverse-proxy
+
 VOLUME /var/lib/tailscale
 
 CMD /usr/local/bin/tailscale-reverse-proxy -state-dir /var/lib/tailscale

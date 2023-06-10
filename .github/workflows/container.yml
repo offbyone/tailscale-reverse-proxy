@@ -30,7 +30,7 @@ jobs:
           - goos: linux
             goarch: arm
             arm_version: "7"
-            docker: linux/armv7
+            docker: linux/arm/v7
 
           - goos: linux
             goarch: arm64
@@ -67,7 +67,7 @@ jobs:
     strategy:
       matrix:
         docker:
-          - linux/armv7
+          - linux/arm/v7
           - linux/aarch64
           - linux/amd64
 

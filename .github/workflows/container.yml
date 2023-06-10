@@ -24,7 +24,7 @@ jobs:
       GOARM=${{ matrix.goarm }}
 
     strategy:
-      matrix: &matrix
+      matrix:
         goos: []
         goarch: []
         arm_version: []
@@ -67,7 +67,10 @@ jobs:
       - build
     strategy:
       matrix:
-        <<: *matrix
+        docker:
+          - linux/armv7
+          - linux/aarch64
+          - linux/amd64
 
     steps:
       - run: |

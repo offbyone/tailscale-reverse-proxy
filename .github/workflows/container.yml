@@ -45,11 +45,13 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: "1.20"
-      - run: |
+      - name: Determine the binary for ${{ matrix.docker }}
+        run: |
           output_file=tailscale-reverse-proxy-$(echo ${{ matrix.docker }} | tr / - )
           echo "output_file=$output_file" >> "$GITHUB_ENV"
-      - run: go build -v -o ${{ env.output_file }}
-      - name: Upload Go test results
+      - name: Build ${{ env.output_file }}
+        run: go build -v -o ${{ env.output_file }}
+      - name: Upload ${{ env.output_file }} for docker
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.output_file }}
@@ -70,11 +72,13 @@ jobs:
           - linux/amd64
 
     steps:
-      - run: |
+      - name: Determine the cached executable name for ${{ matrix.docker }}
+        run: |
           output_file=tailscale-reverse-proxy-$(echo ${{ matrix.docker }} | tr / - )
-          echo executable=$output_file" >> "$GITHUB_ENV"
+          echo executable="$output_file" >> "$GITHUB_ENV"
       - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v3
+      - name: Download ${{ env.executable }} for ${{ matrix.docker }}
+        uses: actions/download-artifact@v3
         with:
           name: ${{ env.executable }}
           path: ${{ env.executable }}

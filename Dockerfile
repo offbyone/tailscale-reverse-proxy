@@ -1,6 +1,11 @@
-FROM debian:bookworm-slim
+FROM debian:bookworm-slim AS setup
 ARG EXECUTABLE=tailscale-reverse-proxy
+RUN mkdir -p /tmp/ts-r-p/
+COPY ${EXECUTABLE} /tmp/ts-r-p/
+RUN mv -v /tmp/ts-r-p/* /tmp/tailscale-reverse-proxy
+RUN chmod +x /tmp/tailscale-reverse-proxy
 
+FROM debian:bookworm-slim
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update && \
     apt-get -y --no-install-recommends install ca-certificates && \
@@ -8,9 +13,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-COPY ${EXECUTABLE} /usr/local/bin/tailscale-reverse-proxy
-
-RUN chmod +x /usr/local/bin/tailscale-reverse-proxy
+COPY --from=setup /tmp/tailscale-reverse-proxy /usr/local/bin/
 
 VOLUME /var/lib/tailscale
 

@@ -7,7 +7,6 @@ on:
     pull_request:
       branches:
         - main
-    workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,14 +18,63 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: Build ghcr.io/${{ github.repository }} for ${{ matrix.arch }}
+    name: Build the proxy for ${{matrix.build.docker}}
+    env: GOOS=${{ matrix.goos }}
+      GOARCH=${{ matrix.goarch }}
+      GOARM=${{ matrix.goarm }}
+
     strategy:
       matrix:
-        arch: ["aarch64", "amd64", "armhf", "arm/v7"]
+        build: &builds
+          - goos: linux
+            goarch: arm
+            arm_version: "7"
+            docker: linux/armv7
+
+          - goos: linux
+            goarch: arm64
+            docker: linux/aarch64
+
+          - goos: linux
+            goarch: amd64
+            docker: linux/amd64
 
     steps:
       - uses: actions/checkout@v3
-      # - uses: docker/setup-qemu-action@v2
+      - uses: actions/setup-go@v4
+        with:
+          go-version: "1.20"
+      - run: |
+          output_file=tailscale-reverse-proxy-$(echo ${{ matrix.build.docker }} | tr / - )
+          echo "output_file=$output_file" >> "$GITHUB_ENV"
+      - run: go build -v . -o ${{ env.output_file }}
+      - name: Upload Go test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.output_file }}
+          path: ${{ env.output_file }}
+          if-no-files-found: error
+          retention-days: 1
+
+  build-image:
+    runs-on: ubuntu-latest
+    name: Build the docker images for ${{matrix.build.docker}}
+    needs:
+      - build
+    strategy:
+      matrix:
+        build:
+          <<: *builds
+
+    steps:
+      - run: |
+          output_file=tailscale-reverse-proxy-$(echo ${{ matrix.build.docker }} | tr / - )
+          echo executable=$output_file" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
+        with:
+          name: ${{ env.executable }}
+          path: ${{ env.executable }}
       - uses: docker/setup-buildx-action@v2
       - name: Log in to the Github Container registry
         uses: docker/login-action@v2
@@ -52,8 +100,11 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          platforms: linux/${{ matrix.arch }}
+          platforms: ${{ matrix.build.docker }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            EXECUTABLE=${{ env.executable }}
+
           outputs: type=image,name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
@@ -74,7 +125,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Merge the builds for ${{ github.event.repository.name }}
     needs:
-      - build
+      - build-image
 
     steps:
       - name: Download digests

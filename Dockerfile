@@ -1,14 +1,7 @@
-FROM golang:1.20 AS compile-proxy
-RUN mkdir /src
-COPY go.mod go.sum /src/
-COPY *.go /src/
-WORKDIR /src
-RUN go build -v
-
 FROM debian:bookworm-slim
-COPY --from=compile-proxy      \
-    /src/tailscale-reverse-proxy \
-    /usr/local/bin/tailscale-reverse-proxy
+ARG EXECUTABLE=tailscale-reverse-proxy
+
+COPY ${EXECUTABLE} /usr/local/bin/tailscale-reverse-proxy
 
 VOLUME /var/lib/tailscale
 

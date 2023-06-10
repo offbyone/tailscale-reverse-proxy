@@ -24,8 +24,12 @@ jobs:
       GOARM=${{ matrix.goarm }}
 
     strategy:
-      matrix:
-        build: &builds
+      matrix: &matrix
+        goos: []
+        goarch: []
+        arm_version: []
+        docker: []
+        include:
           - goos: linux
             goarch: arm
             arm_version: "7"
@@ -45,7 +49,7 @@ jobs:
         with:
           go-version: "1.20"
       - run: |
-          output_file=tailscale-reverse-proxy-$(echo ${{ matrix.build.docker }} | tr / - )
+          output_file=tailscale-reverse-proxy-$(echo ${{ matrix.docker }} | tr / - )
           echo "output_file=$output_file" >> "$GITHUB_ENV"
       - run: go build -v . -o ${{ env.output_file }}
       - name: Upload Go test results
@@ -58,17 +62,16 @@ jobs:
 
   build-image:
     runs-on: ubuntu-latest
-    name: Build the docker images for ${{matrix.build.docker}}
+    name: Build the docker images for ${{matrix.docker}}
     needs:
       - build
     strategy:
       matrix:
-        build:
-          <<: *builds
+        <<: *matrix
 
     steps:
       - run: |
-          output_file=tailscale-reverse-proxy-$(echo ${{ matrix.build.docker }} | tr / - )
+          output_file=tailscale-reverse-proxy-$(echo ${{ matrix.docker }} | tr / - )
           echo executable=$output_file" >> "$GITHUB_ENV"
       - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
@@ -100,7 +103,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          platforms: ${{ matrix.build.docker }}
+          platforms: ${{ matrix.docker }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             EXECUTABLE=${{ env.executable }}

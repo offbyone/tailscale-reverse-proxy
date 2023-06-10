@@ -48,7 +48,7 @@ jobs:
       - run: |
           output_file=tailscale-reverse-proxy-$(echo ${{ matrix.docker }} | tr / - )
           echo "output_file=$output_file" >> "$GITHUB_ENV"
-      - run: go build -v . -o ${{ env.output_file }}
+      - run: go build -v -o ${{ env.output_file }}
       - name: Upload Go test results
         uses: actions/upload-artifact@v3
         with:

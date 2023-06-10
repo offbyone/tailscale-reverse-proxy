@@ -18,10 +18,11 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: Build the proxy for ${{matrix.build.docker}}
-    env: GOOS=${{ matrix.goos }}
-      GOARCH=${{ matrix.goarch }}
-      GOARM=${{ matrix.goarm }}
+    name: Build the proxy for ${{matrix.docker}}
+    env:
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+      GOARM: ${{ matrix.arm_version }}
 
     strategy:
       matrix:

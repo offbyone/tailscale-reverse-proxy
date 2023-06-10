@@ -47,6 +47,7 @@ var (
 	tailscaleDir = flag.String("state-dir", "./", "Alternate directory to use for Tailscale state storage. If empty, a default is used.")
 	useHTTPS     = flag.Bool("use-https", false, "Serve over HTTPS via your *.ts.net subdomain if enabled in Tailscale admin.")
 	addUser      = flag.Bool("add-tailscale-user", false, "Add tailscale authentication")
+	debug        = flag.Bool("debug", false, "Print out HTTP requests as they come in")
 )
 
 func main() {
@@ -75,6 +76,9 @@ func main() {
 
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
+			if *debug {
+				printRequest(pr.In)
+			}
 			rewriteRequestURL(pr.Out, url)
 			addReverseProxyHeaders(pr.In, pr.Out)
 			if *addUser {
@@ -127,6 +131,10 @@ func main() {
 	}
 	log.Printf("proxy-to-grafana running at %v, proxying to %v", ln.Addr(), *backendAddr)
 	log.Fatal(http.Serve(ln, proxy))
+}
+
+func printRequest(req *http.Request) {
+	log.Printf("%s %s %s", req.Method, req.RemoteAddr, req.RequestURI)
 }
 
 func rewriteRequestURL(req *http.Request, target *url.URL) {

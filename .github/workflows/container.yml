@@ -4,10 +4,9 @@ on:
   push:
     branches:
       - main
-    pull_request:
-      branches:
-        - main
-    workflow_dispatch:
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -19,14 +18,70 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: Build ghcr.io/${{ github.repository }} for ${{ matrix.arch }}
+    name: Build the proxy for ${{matrix.docker}}
+    env:
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+      GOARM: ${{ matrix.arm_version }}
+
     strategy:
       matrix:
-        arch: ["aarch64", "amd64", "armhf", "arm/v7"]
+        include:
+          - goos: linux
+            goarch: arm
+            arm_version: "7"
+            docker: linux/arm/v7
+
+          - goos: linux
+            goarch: arm64
+            docker: linux/aarch64
+
+          - goos: linux
+            goarch: amd64
+            docker: linux/amd64
 
     steps:
       - uses: actions/checkout@v3
-      # - uses: docker/setup-qemu-action@v2
+      - uses: actions/setup-go@v4
+        with:
+          go-version: "1.20"
+      - name: Determine the binary for ${{ matrix.docker }}
+        run: |
+          output_file=tailscale-reverse-proxy-$(echo ${{ matrix.docker }} | tr / - )
+          echo "output_file=$output_file" >> "$GITHUB_ENV"
+      - name: Build ${{ env.output_file }}
+        run: go build -v -o ${{ env.output_file }}
+      - name: Upload ${{ env.output_file }} for docker
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.output_file }}
+          path: ${{ env.output_file }}
+          if-no-files-found: error
+          retention-days: 1
+
+  build-image:
+    runs-on: ubuntu-latest
+    name: Build the docker images for ${{matrix.docker}}
+    needs:
+      - build
+    strategy:
+      matrix:
+        docker:
+          - linux/arm/v7
+          - linux/aarch64
+          - linux/amd64
+
+    steps:
+      - name: Determine the cached executable name for ${{ matrix.docker }}
+        run: |
+          output_file=tailscale-reverse-proxy-$(echo ${{ matrix.docker }} | tr / - )
+          echo executable="$output_file" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v3
+      - name: Download ${{ env.executable }} for ${{ matrix.docker }}
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ env.executable }}
+          path: ${{ env.executable }}
       - uses: docker/setup-buildx-action@v2
       - name: Log in to the Github Container registry
         uses: docker/login-action@v2
@@ -52,8 +107,11 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          platforms: linux/${{ matrix.arch }}
+          platforms: ${{ matrix.docker }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            EXECUTABLE=${{ env.executable }}
+
           outputs: type=image,name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
@@ -74,7 +132,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Merge the builds for ${{ github.event.repository.name }}
     needs:
-      - build
+      - build-image
 
     steps:
       - name: Download digests

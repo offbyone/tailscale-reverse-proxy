@@ -24,10 +24,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -41,12 +43,54 @@ import (
 	"tailscale.com/tsnet"
 )
 
+type ConnectionErrorHandler struct{ http.RoundTripper }
+
+var message = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>
+Backend Unavailable
+</title>
+<style>
+body {
+	font-family: fantasy;
+	text-align: center;
+	padding-top: 20%;
+	background-color: #f1f6f8;
+}
+</style>
+</head>
+<body>
+<h1>503 Backend Unavailable</h1>
+<p>Sorry, we&lsquo;re having a brief problem. You can retry.</p>
+<p>If the problem persists, please get in touch.</p>
+</body>
+</html>`
+
+func (c *ConnectionErrorHandler) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := c.RoundTripper.RoundTrip(req)
+	if err != nil {
+		log.Printf("Error: backend request failed for %v: %v",
+			req.RemoteAddr, err)
+	}
+	if _, ok := err.(*net.OpError); ok {
+		r := &http.Response{
+			StatusCode: http.StatusServiceUnavailable,
+			Body:       ioutil.NopCloser(bytes.NewBufferString(message)),
+		}
+		return r, nil
+	}
+	return resp, err
+}
+
 var (
 	hostname     = flag.String("hostname", "", "Tailscale hostname to serve on, used as the base name for MagicDNS or subdomain in your domain alias for HTTPS.")
 	backendAddr  = flag.String("backend-addr", "", "Address of the Grafana server served over HTTP, in host:port format. Typically localhost:nnnn.")
 	tailscaleDir = flag.String("state-dir", "./", "Alternate directory to use for Tailscale state storage. If empty, a default is used.")
 	useHTTPS     = flag.Bool("use-https", false, "Serve over HTTPS via your *.ts.net subdomain if enabled in Tailscale admin.")
 	addUser      = flag.Bool("add-tailscale-user", false, "Add tailscale authentication")
+	proxyToTls   = flag.Bool("proxy-to-tls", false, "Use TLS to send the backend proxy requests")
 	debug        = flag.Bool("debug", false, "Print out HTTP requests as they come in")
 )
 
@@ -86,6 +130,20 @@ func main() {
 			}
 		},
 	}
+
+	proxy.Transport = &ConnectionErrorHandler{http.DefaultTransport}
+
+	// if *proxyToTls {
+	// 	var caCertPool *x509.CertPool
+
+	// 	proxy.Transport = &http.Transport{
+	// 		TLSClientConfig: &tls.Config{
+	// 			RootCAs:    caCertPool,
+	// 			MinVersion: tls.VersionTLS13,
+	// 			MaxVersion: tls.VersionTLS13,
+	// 		},
+	// 	}
+	// }
 
 	var ln net.Listener
 	if *useHTTPS {

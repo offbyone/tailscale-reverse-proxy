@@ -2,6 +2,8 @@ module tailscale-reverse-proxy
 
 go 1.20
 
+require tailscale.com v1.42.0
+
 require (
 	filippo.io/edwards25519 v1.0.0 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
@@ -69,5 +71,4 @@ require (
 	gvisor.dev/gvisor v0.0.0-20230504175454-7b0a1988a28f // indirect
 	inet.af/peercred v0.0.0-20210906144145-0893ea02156a // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
-	tailscale.com v1.42.0 // indirect
 )

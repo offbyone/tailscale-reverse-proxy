@@ -1,6 +1,7 @@
 module tailscale-reverse-proxy
 
-go 1.21.1
+go 1.22.0
+
 toolchain go1.22.1
 
 require tailscale.com v1.62.1

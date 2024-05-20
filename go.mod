@@ -4,7 +4,7 @@ go 1.22.0
 
 toolchain go1.22.1
 
-require tailscale.com v1.66.1
+require tailscale.com v1.66.3
 
 // it might be necessary to `go get gvisor.dev/gvisor@go` to get the go-build compatible branch
 
